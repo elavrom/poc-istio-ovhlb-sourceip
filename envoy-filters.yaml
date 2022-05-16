@@ -1,0 +1,47 @@
+# This filter enables the Proxy Protocol for Envoy
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: proxy-protocol
+  namespace: istio-system
+spec:
+  configPatches:
+    - applyTo: LISTENER
+      patch:
+        operation: MERGE
+        value:
+          listener_filters:
+            - name: envoy.filters.listener.proxy_protocol
+            - name: envoy.filters.listener.tls_inspector
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+---
+# This filter preservers the source IP and sets the X-Forwarded-For HTTP Header.
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: preserve-source-ip
+  namespace: istio-system
+spec:
+  configPatches:
+    - applyTo: NETWORK_FILTER
+      match:
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: MERGE
+        value:
+          name: envoy.filters.network.http_connection_manager
+          typed_config:
+            '@type': >-
+              type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+            skip_xff_append: false
+            use_remote_address: true
+            # Same value that is defined in the IstioOperator in .spec.meshConfig.defaultConfig.gatewayTopology.numTrustedProxies
+            xff_num_trusted_hops: 1
+  workloadSelector:
+    labels:
+      istio: ingressgateway

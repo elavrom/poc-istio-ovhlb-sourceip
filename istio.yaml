@@ -1,0 +1,33 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-control-plane
+  namespace: istio-system
+spec:
+  components:
+    ingressGateways:
+      - enabled: true
+        k8s:
+          # These lines override the value that the IstioOperator would normally set in the externalTrafficPolicy
+          service:
+            externalTrafficPolicy: Local
+          # Any additional annotation you want to set in the ingress service.
+          serviceAnnotations:
+            service.beta.kubernetes.io/ovh-loadbalancer-proxy-protocol: v2
+        name: istio-ingressgateway
+  meshConfig:
+    accessLogEncoding: JSON
+    accessLogFile: /dev/stdout
+    # There is one trusted proxy : the OVH Load Balancer
+    defaultConfig:
+      gatewayTopology:
+        numTrustedProxies: 1
+  profile: default
+---
+# The ingress class will be used in the echo demo
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: istio
+spec:
+  controller: istio.io/ingress-controller
